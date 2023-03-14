@@ -16,13 +16,13 @@ public interface IPostService {
 
     Post getViewById(int id);
 
-    void updateViewById(int id);
+    Single<Integer> updateViewById(int id);
 
     Single<PostResponse> updateContentById(int id, String content);
 
-    void updateTitleById(int id, String title);
+    Single<String> updateTitleById(int id, String title);
 
-    void updateTypeById(int id, String type);
+    Single<String> updateTypeById(int id, String type);
 
     Map<Integer,Integer> countVoteAndViewById(int id);
 }

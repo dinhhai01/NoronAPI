@@ -28,14 +28,21 @@ public class UserService implements IUserService {
     }
 
     @Override
-    public List<Users> getAllUsers(List<Integer> postId) {
-        return repository.getAllUsers(postId);
+    public Single<List<Users>> getAllUsers(List<Integer> postId) {
+        return Single.create(singleEmitter -> {
+            List<Users> users = repository.getAllUsers(postId);
+            singleEmitter.onSuccess(users);
+        });
+
     }
 
-    public UserResponse insertUser(UserRequest userRequest){
+    public Single<UserResponse> insertUser(UserRequest userRequest){
         Users usersEntity = mapper.toEntity(userRequest);
-        repository.insertUser(usersEntity);
-        return mapper.toResponse(usersEntity);
+        Users users = repository.insertUser(usersEntity);
+        return Single.just(users)
+                .subscribeOn(Schedulers.io())
+                .map(mapper::toResponse);
+
     }
 
     @Override

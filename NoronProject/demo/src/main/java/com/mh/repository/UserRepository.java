@@ -26,16 +26,18 @@ public class UserRepository implements IUserRepository {
 
     }
 
-    public void insertUser(Users user) {
+    public Users insertUser(Users user) {
         LocalDate time = LocalDateTime.now().toLocalDate();
-        dslContext.insertInto(
+        Users users = dslContext.insertInto(
                         Tables.USERS, Tables.USERS.USERNAME,
                         Tables.USERS.PASS, Tables.USERS.EMAIL, Tables.USERS.PHONENUMBER,
                         Tables.USERS.CREATEAT, Tables.USERS.UPDATEAT, Tables.USERS.DELETEAT)
                 .values(user.getUsername(), user.getPass(),
                         user.getEmail(),
                         user.getPhonenumber(), time, time, time)
-                .execute();
+                .returning(Tables.USERS.USERNAME,Tables.USERS.EMAIL,Tables.USERS.PHONENUMBER)
+                .fetchOne().into(Users.class);
+        return users;
     }
 
     @Override

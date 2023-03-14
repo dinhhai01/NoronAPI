@@ -31,7 +31,7 @@ public class UserController {
     }
 
     @PostMapping()
-    public UserResponse insertUser(@RequestBody UserRequest userRequest) {
+    public Single<UserResponse> insertUser(@RequestBody UserRequest userRequest) {
 
         return service.insertUser(userRequest);
     }

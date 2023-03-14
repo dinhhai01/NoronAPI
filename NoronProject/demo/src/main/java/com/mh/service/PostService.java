@@ -19,7 +19,6 @@ import io.reactivex.schedulers.Schedulers;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -63,8 +62,7 @@ public class PostService implements IPostService {
     @Override
     public Single<List<PostResponse>> getAllPosts(Integer numComment, Pageable pageable) {
 
-        return Single.just(getAllPost(pageable))
-                .flatMap(listSingle -> listSingle)
+        return getAllPost(pageable)
                 .flatMap(posts -> {
                     List<PostResponse> postResponses = mapper.toResponses(posts);
                     List<Integer> postIds = posts.stream().map(Post::getId).collect(Collectors.toList());
@@ -102,7 +100,6 @@ public class PostService implements IPostService {
     }
 
     private Single<Map<Integer, List<CommentResponse>>> getComments(List<Integer> postId, int numberOfComments) {
-        System.out.println(Thread.currentThread().getName());
         return Single.just("io")
                 .subscribeOn(Schedulers.io())
                 .flatMap(s -> getCommentByPostId(postId, numberOfComments))
@@ -169,18 +166,26 @@ public class PostService implements IPostService {
     }
 
     private Single<List<Users>> getUsers(List<Comments> comments) {
-        return Single.create(singleEmitter -> {
-            List<Integer> userIds = comments.stream()
-                    .filter(comment -> comment.getParentId() == -1)
-                    .map(Comments::getUserId)
-                    .collect(Collectors.toList());
-            singleEmitter.onSuccess(userRepository.getAllUsers(userIds));
-        });
+        List<Integer> userIds = comments.stream()
+                .filter(comment -> comment.getParentId() == -1)
+                .map(Comments::getUserId)
+                .collect(Collectors.toList());
+        return Single.just("io")
+                .flatMap(s->getAllUsers(userIds));
+//        return Single.create(singleEmitter -> {
+//            singleEmitter.onSuccess(userRepository.getAllUsers(userIds));
+//        });
 //        List<Integer> userIds = comments.stream()
 //                .filter(comment -> comment.getParentId() == -1)
 //                .map(Comments::getUserId)
 //                .collect(Collectors.toList());
 //        return userRepository.getAllUsers(userIds);
+    }
+
+    private Single<List<Users>> getAllUsers(List<Integer> userIds) {
+        return Single.create(singleEmitter -> {
+            singleEmitter.onSuccess(userRepository.getAllUsers(userIds));
+        });
     }
 
     @Override
@@ -189,8 +194,15 @@ public class PostService implements IPostService {
     }
 
     @Override
-    public void updateViewById(int id) {
-
+    public Single<Integer> updateViewById(int id) {
+        return Single.create(singleEmitter -> {
+            Post post = repository.updateViewById(id);
+            if (post!= null) {
+                singleEmitter.onSuccess(post.getId());
+            } else {
+                singleEmitter.onError(new Exception("post not found"));
+            }
+        });
     }
 
     @Override
@@ -206,14 +218,27 @@ public class PostService implements IPostService {
     }
 
     @Override
-    public void updateTitleById(int id, String title) {
-        repository.updateViewById(id);
-
+    public Single<String> updateTitleById(int id, String title) {
+        return Single.create(singleEmitter -> {
+            Post post = repository.updateTitleById(id, title);
+            if (post!= null) {
+                singleEmitter.onSuccess(post.getTitle());
+            } else {
+                singleEmitter.onError(new Exception("post not found"));
+            }
+        });
     }
 
     @Override
-    public void updateTypeById(int id, String type) {
-
+    public Single<String> updateTypeById(int id, String type) {
+        return Single.create(singleEmitter -> {
+            Post post = repository.updateTypeById(id, type);
+            if (post!= null) {
+                singleEmitter.onSuccess(post.getTypePost());
+            } else {
+                singleEmitter.onError(new Exception("post not found"));
+            }
+        });
     }
 
     @Override

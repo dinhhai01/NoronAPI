@@ -6,6 +6,7 @@ import com.tej.JooQDemo.jooq.sample.model.tables.pojos.Post;
 import com.tej.JooQDemo.jooq.sample.model.tables.pojos.Topic;
 
 
+import io.reactivex.Single;
 import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Map;
@@ -17,13 +18,15 @@ public interface IPostRepository {
 
     List<Post> getAllPosts(Pageable pageable);
 
-    void updateViewById(int id);
+   Post updateViewById(int id);
 //
     Post updateContentById(int id,String content);
 
-    void updateTitleById(int id,String title);
+    Post updateTitleById(int id,String title);
 
-    void updateTypeById(int id, String type);
+    Single<List<Post>> getPosts(Pageable pageable);
+
+    Post updateTypeById(int id, String type);
 
     int getViewById(int id);
 

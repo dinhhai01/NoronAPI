@@ -11,9 +11,9 @@ import java.util.List;
 
 
 public interface IUserService {
-    List<Users> getAllUsers(List<Integer> postId);
+    Single<List<Users>> getAllUsers(List<Integer> postId);
 
-    UserResponse insertUser(UserRequest userRequest);
+    Single<UserResponse> insertUser(UserRequest userRequest);
 
     void updatePhoneUserByID(String phone,int id);
 

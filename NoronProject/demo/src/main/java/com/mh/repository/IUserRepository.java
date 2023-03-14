@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface IUserRepository{
 
-    void insertUser(Users user);
+    Users insertUser(Users user);
 
     List<Users> getAllUsers(List<Integer> postId);
 

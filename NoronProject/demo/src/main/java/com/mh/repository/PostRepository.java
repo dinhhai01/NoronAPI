@@ -1,37 +1,40 @@
 package com.mh.repository;
 
 
+import com.mh.template.RxTemplate;
+import com.mh.utils.DateTime;
 import com.tej.JooQDemo.jooq.sample.model.Tables;
 import com.tej.JooQDemo.jooq.sample.model.tables.pojos.Post;
 import com.tej.JooQDemo.jooq.sample.model.tables.pojos.Topic;
 import com.tej.JooQDemo.jooq.sample.model.tables.records.PostTopicRecord;
+import io.reactivex.Single;
 import org.jooq.DSLContext;
 import org.jooq.InsertSetMoreStep;
 import org.jooq.impl.DSL;
-import org.springframework.stereotype.Repository;
-import com.mh.utils.DateTime;
-
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Repository;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.mh.template.RxTemplate.rxSchedulerIo;
+
 @Repository
-public class PostRepository implements IPostRepository{
+public class PostRepository implements IPostRepository {
 
     private final DSLContext dslContext;
 
 
-    public PostRepository(DSLContext dslContext){
+    public PostRepository(DSLContext dslContext) {
         this.dslContext = dslContext;
 
 
     }
 
     @Override
-    public Map<Post,List<Topic>> insertPost(Post post , List<Topic> topics) {
-        List<Map<Post,List<Topic>>> list = new ArrayList<>();
-        dslContext.transaction(out->{
+    public Map<Post, List<Topic>> insertPost(Post post, List<Topic> topics) {
+        List<Map<Post, List<Topic>>> list = new ArrayList<>();
+        dslContext.transaction(out -> {
             DSLContext context = DSL.using(out);
             List<Topic> topicPoJo = new ArrayList<>();
             Post post1 = Objects.requireNonNull(context.insertInto(Tables.POST,
@@ -54,8 +57,8 @@ public class PostRepository implements IPostRepository{
                     .returning(Tables.POST.ID, Tables.POST.TITLE, Tables.POST.CONTENT, Tables.POST.TYPE_POST, Tables.POST.VIEW_POST)
                     .fetchOne()).into(Post.class);
 
-            List<InsertSetMoreStep<PostTopicRecord>> insertSetMoreSteps=topics.stream()
-                    .map(topic->context
+            List<InsertSetMoreStep<PostTopicRecord>> insertSetMoreSteps = topics.stream()
+                    .map(topic -> context
                             .insertInto(Tables.POST_TOPIC)
                             .set(Tables.POST_TOPIC.POST_ID, post1.getId())
                             .set(Tables.POST_TOPIC.TOPIC_ID, topic.getId()))
@@ -63,19 +66,19 @@ public class PostRepository implements IPostRepository{
             context.batch(insertSetMoreSteps).execute();
 
             topicPoJo = insertSetMoreSteps.stream()
-                    .map(insertSetMoreStep->{
+                    .map(insertSetMoreStep -> {
                         return topics.stream()
-                                .filter(topic -> topic.getId()==insertSetMoreStep.getBindValues().get(1))
+                                .filter(topic -> topic.getId() == insertSetMoreStep.getBindValues().get(1))
                                 .limit(1)
                                 .collect(Collectors.toList()).get(0);
                     })
                     .collect(Collectors.toList());
-            Map<Post,List<Topic>> map = new HashMap<>();
-            map.put(post1,topicPoJo);
+            Map<Post, List<Topic>> map = new HashMap<>();
+            map.put(post1, topicPoJo);
             list.add(map);
         });
 
-            return list.get(0);
+        return list.get(0);
     }
 
     @Override
@@ -90,11 +93,29 @@ public class PostRepository implements IPostRepository{
     }
 
     @Override
-    public void updateTypeById(int id, String type) {
-        dslContext.update(Tables.POST)
-                .set(Tables.POST.TYPE_POST, type)
-                .where(Tables.POST.ID.eq(id))
-                .execute();
+    public Single<List<Post>> getPosts(Pageable pageable) {
+        return rxSchedulerIo(() -> dslContext.select()
+                .from(Tables.POST)
+                .limit(pageable.getPageSize()).offset(pageable.getOffset())
+                .fetchInto(Post.class));
+    }
+
+    @Override
+    public Post updateTypeById(int id, String type) {
+        List<Post> l = new ArrayList<Post>();
+        dslContext.transaction(out -> {
+            DSLContext context = DSL.using(out);
+            context.update(Tables.POST)
+                    .set(Tables.POST.TYPE_POST, type)
+                    .where(Tables.POST.ID.eq(id))
+                    .execute();
+
+            Post post = context.selectFrom(Tables.POST)
+                    .where(Tables.POST.ID.eq(id))
+                    .fetchOneInto(Post.class);
+            l.add(post);
+        });
+        return l.get(0);
     }
 
     @Override
@@ -109,12 +130,12 @@ public class PostRepository implements IPostRepository{
     @Override
     public Post updateContentById(int id, String content) {
         List<Post> l = new ArrayList<Post>();
-        dslContext.transaction(out->{
+        dslContext.transaction(out -> {
             DSLContext context = DSL.using(out);
             context.update(Tables.POST)
-                   .set(Tables.POST.CONTENT, content)
-                   .where(Tables.POST.ID.eq(id))
-                   .execute();
+                    .set(Tables.POST.CONTENT, content)
+                    .where(Tables.POST.ID.eq(id))
+                    .execute();
 
             Post post = context.selectFrom(Tables.POST)
                     .where(Tables.POST.ID.eq(id))
@@ -125,19 +146,39 @@ public class PostRepository implements IPostRepository{
     }
 
     @Override
-    public void updateTitleById(int id, String title) {
-        dslContext.update(Tables.POST)
-                .set(Tables.POST.TITLE,title)
-                .where(Tables.POST.ID.eq(id))
-                .execute();
+    public Post updateTitleById(int id, String title) {
+        List<Post> l = new ArrayList<>();
+        dslContext.transaction(out -> {
+            DSLContext context = DSL.using(out);
+            context.update(Tables.POST)
+                    .set(Tables.POST.TITLE, title)
+                    .where(Tables.POST.ID.eq(id))
+                    .execute();
+
+            Post post = context.selectFrom(Tables.POST)
+                    .where(Tables.POST.ID.eq((id)))
+                    .fetchOneInto(Post.class);
+            l.add(post);
+        });
+        return l.get(0);
     }
 
     @Override
-    public void updateViewById(int id) {
-        dslContext.update(Tables.POST)
-                .set(Tables.POST.VIEW_POST, Tables.POST.VIEW_POST.add(1))
-                .where(Tables.POST.ID.eq(id))
-                .execute();
+    public Post updateViewById(int id) {
+        List<Post> l = new ArrayList<Post>();
+        dslContext.transaction(out -> {
+            DSLContext context = DSL.using(out);
+            context.update(Tables.POST)
+                    .set(Tables.POST.VIEW_POST, Tables.POST.VIEW_POST.add(1))
+                    .where(Tables.POST.ID.eq(id))
+                    .execute();
+
+            Post post = context.selectFrom(Tables.POST)
+                    .where(Tables.POST.ID.eq(id))
+                    .fetchOneInto(Post.class);
+            l.add(post);
+        });
+        return l.get(0);
     }
 
 
