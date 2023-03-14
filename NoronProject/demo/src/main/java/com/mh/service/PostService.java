@@ -62,40 +62,24 @@ public class PostService implements IPostService {
 
     @Override
     public Single<List<PostResponse>> getAllPosts(Integer numComment, Pageable pageable) {
-//        List<Post> posts = repository.getAllPosts(pageable);
-        return Single.just(new ArrayList<Post>())
+
+        return Single.just(getAllPost(pageable))
+                .flatMap(listSingle -> listSingle)
                 .flatMap(posts -> {
                     List<PostResponse> postResponses = mapper.toResponses(posts);
                     List<Integer> postIds = posts.stream().map(Post::getId).collect(Collectors.toList());
-//        List<Comments> comments = commentRepository.getCommentByPostId(postIds, numComment);
-//        List<PostTopicDTO> postTopicDTOS = postTopicRepository.getListTopicByPostId(postIds);
-//        List<Users> userComments = getUsers(comments);
-
-//        postIds.forEach(p -> {
-////            List<CommentResponse> commentsList = getCommentResponses(comments, userComments, p);
-//            List<CommentResponse> commentsList = mapper.toResponse(comments, userComments, p);
-//            List<TopicResponse> topicList = getTopicResponses(postTopicDTOS, p);
-//            map.put(p, commentsList);
-//            mapTopic.put(p, topicList);
-//
-//        });
                     return Single.zip(
                             getComments(postIds, numComment),
                             getTopics(postIds),
                             (o, o1) -> getPostResponses(o, o1, postResponses));
                 });
-//        postResponses.forEach(p -> {
-//            if (!CollectionUtils.isEmpty(map) && map.containsKey(p.getId())) {
-//                p.setComments(map.get(p.getId()));
-//            }
-//
-//            if (!CollectionUtils.isEmpty(mapTopic) && map.containsKey(p.getId())) {
-//                p.setTopics(mapTopic.get(p.getId()).stream()
-//                        .map(TopicResponse::getTopicId)
-//                        .collect(Collectors.toList()));
-//            }
-//        });
-//        return postResponses;
+    }
+
+    private Single<List<Post>> getAllPost(Pageable pageable) {
+        return Single.create(singleEmitter -> {
+            List<Post> posts = repository.getAllPosts(pageable);
+            singleEmitter.onSuccess(posts);
+        });
     }
 
     private List<PostResponse> getPostResponses(Map<Integer, List<CommentResponse>> map,
@@ -121,19 +105,26 @@ public class PostService implements IPostService {
         System.out.println(Thread.currentThread().getName());
         return Single.just("io")
                 .subscribeOn(Schedulers.io())
-                .flatMap(s -> {
-                    System.out.println(Thread.currentThread().getName());
-                    return Single.create(singleEmitter -> {
-                        List<Comments> comments = commentRepository.getCommentByPostId(postId, numberOfComments);
-                        List<Users> userComments = getUsers(comments);
-                        Map<Integer, List<CommentResponse>> map = new HashMap<>();
-                        postId.forEach(p -> {
-                            List<CommentResponse> commentsList = mapper.toResponse(comments, userComments, p);
-                            map.put(p, commentsList);
-                        });
-                        singleEmitter.onSuccess(map);
-                    });
+                .flatMap(s -> getCommentByPostId(postId, numberOfComments))
+                .flatMap(comments -> {
+                    return getUsers(comments)
+                            .map(users -> {
+                                Map<Integer, List<CommentResponse>> map = new HashMap<>();
+                                postId.forEach(p -> {
+                                    List<CommentResponse> commentsList = mapper.toResponse(comments, users, p);
+                                    map.put(p, commentsList);
+                                });
+                                return map;
+                            });
                 });
+    }
+
+
+    private Single<List<Comments>> getCommentByPostId(List<Integer> postIds, int numberOfComments) {
+        return Single.create(singleEmitter -> {
+            List<Comments> comments = commentRepository.getCommentByPostId(postIds, numberOfComments);
+            singleEmitter.onSuccess(comments);
+        });
     }
 
     private Single<Map<Integer, List<TopicResponse>>> getTopics(List<Integer> postId) {
@@ -154,12 +145,6 @@ public class PostService implements IPostService {
                 .filter(postTopicDTO -> Objects.equals(postTopicDTO.getPostId(), p))
                 .map(mapper::toTopicRespon)
                 .collect(Collectors.toList());
-//        postTopicDTOS.forEach(postTopicDTO -> {
-//            if (Objects.equals(postTopicDTO.getPostId(), p)) {
-//                topicList.add(mapper.toTopicRespon(postTopicDTO));
-//            }
-//        });
-
         return topicList;
     }
 
@@ -183,12 +168,19 @@ public class PostService implements IPostService {
         return null;
     }
 
-    private List<Users> getUsers(List<Comments> comments) {
-        List<Integer> userIds = comments.stream()
-                .filter(comment -> comment.getParentId() == -1)
-                .map(Comments::getUserId)
-                .collect(Collectors.toList());
-        return userRepository.getAllUsers(userIds);
+    private Single<List<Users>> getUsers(List<Comments> comments) {
+        return Single.create(singleEmitter -> {
+            List<Integer> userIds = comments.stream()
+                    .filter(comment -> comment.getParentId() == -1)
+                    .map(Comments::getUserId)
+                    .collect(Collectors.toList());
+            singleEmitter.onSuccess(userRepository.getAllUsers(userIds));
+        });
+//        List<Integer> userIds = comments.stream()
+//                .filter(comment -> comment.getParentId() == -1)
+//                .map(Comments::getUserId)
+//                .collect(Collectors.toList());
+//        return userRepository.getAllUsers(userIds);
     }
 
     @Override
