@@ -31,7 +31,7 @@ public class PostController {
     }
 
     @GetMapping()
-    public Single<List<PostResponse>> getAllPosts(@RequestParam(value = "limit", defaultValue = "1") Integer numComment,Pageable pageable) {
+    public Single<List<PostResponse>> getAllPosts(@RequestParam(value = "limit", defaultValue = "10") Integer numComment,Pageable pageable) {
 
         return service.getAllPosts(numComment, pageable);
     }

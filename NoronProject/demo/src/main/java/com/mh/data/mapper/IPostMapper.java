@@ -56,8 +56,8 @@ public abstract class IPostMapper {
 //        return topicMapper.topicResponses(postTopicDTOS,id);
 //    }
 
-    public List<CommentResponse> toResponse(List<Comments> comments,List<Users> users, Integer id){
-        return commentMapper.toResponse(comments,users,id);
+    public List<CommentResponse> toResponse(List<Comments> comments,List<Users> users){
+        return commentMapper.toResponse(comments,users);
     }
 
 
@@ -70,7 +70,7 @@ public abstract class IPostMapper {
     @AfterMapping
     protected void afterMapping(@MappingTarget PostResponse response, Post post, @Context List<Topic> topics) {
 // ...
-        response.setTopics(
+        response.setTopicIds(
                 topics.stream()
                         .map(topic -> topic.getId())
                         .collect(Collectors.toList())

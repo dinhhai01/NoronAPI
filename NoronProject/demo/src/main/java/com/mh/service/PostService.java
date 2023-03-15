@@ -75,6 +75,7 @@ public class PostService implements IPostService {
                 .flatMap(posts -> {
                     List<PostResponse> postResponses = mapper.toResponses(posts);
                     List<Integer> postIds = posts.stream().map(Post::getId).collect(Collectors.toList());
+                    System.out.println("post id "+postIds);
                     return Single.zip(
                             getComments(postIds, numComment),
                             getTopics(postIds),
@@ -90,18 +91,18 @@ public class PostService implements IPostService {
 //        });
     }
 
-    private List<PostResponse> getPostResponses(List<CommentResponse> map,
-                                                List<TopicResponse> mapTopic,
+    private List<PostResponse> getPostResponses(List<CommentResponse> commentResponses,
+                                                Map<Integer,List<TopicResponse>> mapTopic,
                                                 List<PostResponse> postResponses) {
-        // kafka +
 
         postResponses.forEach(p -> {
-            if (!CollectionUtils.isEmpty(map) && map.containsKey(p.getId())) {
-                p.setComments(map.get(p.getId()));
+            if (!CollectionUtils.isEmpty(commentResponses) ) {
+                p.setComments(getComment(p,commentResponses));
             }
 
-            if (!CollectionUtils.isEmpty(mapTopic) && map.containsKey(p.getId())) {
-                p.setTopics(mapTopic.get(p.getId()).stream()
+            if (!CollectionUtils.isEmpty(mapTopic)) {
+                p.setTopicIds(mapTopic.get(p.getId()).stream()
+                        .map(TopicResponse::getTopicId)
                         .collect(Collectors.toList()));
             }
         });
@@ -109,21 +110,27 @@ public class PostService implements IPostService {
         return postResponses;
     }
 
+    private List<CommentResponse> getComment(PostResponse p, List<CommentResponse> commentResponses){
+        List<CommentResponse> commentResponseList = new ArrayList<>();
+        commentResponses.forEach(c -> {
+            if (c.getPostId().equals(p.getId())) {
+                commentResponseList.add(c);
+            }
+        });
+        return commentResponseList;
+    }
+
     private Single<List<CommentResponse>> getComments(List<Integer> postId, int numberOfComments) {
         return getCommentByPostId(postId, numberOfComments)
                 .flatMap(comments -> getUsers(comments)
                         .map(users -> {
-                            Map<Integer, List<CommentResponse>> map = new HashMap<>();
-                            postId.forEach(p -> {
-                                List<CommentResponse> commentsList = mapper.toResponse(comments, users, p);
-                                map.put(p, commentsList);
-                            });
-                            return map;
+                            return mapper.toResponse(comments, users);
                         }));
     }
 
 
     private Single<List<Comments>> getCommentByPostId(List<Integer> postIds, int numberOfComments) {
+        System.out.println("comment "+commentRepository.getCommentByPostId(postIds, numberOfComments).blockingGet());
         return commentRepository.getCommentByPostId(postIds, numberOfComments);
 //        return Single.create(singleEmitter -> {
 //            List<Comments> comments = commentRepository.getCommentByPostId(postIds, numberOfComments);
@@ -131,7 +138,7 @@ public class PostService implements IPostService {
 //        });
     }
 
-    private Single<List<TopicResponse>> getTopics(List<Integer> postId) {
+    private Single<Map<Integer,List<TopicResponse>>> getTopics(List<Integer> postId) {
         return postTopicRepository.getListTopicByPostId(postId)
                 .map(post -> {
                     Map<Integer, List<TopicResponse>> map = new HashMap<>();
@@ -182,10 +189,12 @@ public class PostService implements IPostService {
     }
 
     private Single<List<Users>> getUsers(List<Comments> comments) {
+        System.out.println("comments "+comments);
         List<Integer> userIds = comments.stream()
                 .filter(comment -> comment.getParentId() == -1)
                 .map(Comments::getUserId)
                 .collect(Collectors.toList());
+        System.out.println(userIds);
         return Single.just("io")
                 .flatMap(s -> getAllUsers(userIds));
 //        return Single.create(singleEmitter -> {

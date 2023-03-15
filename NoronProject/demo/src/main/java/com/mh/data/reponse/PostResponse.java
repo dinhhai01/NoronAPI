@@ -18,5 +18,5 @@ public class PostResponse {
     private List<CommentResponse> comments;
 
     private List<Integer> topicIds;
-    private List<TopicResponse> topics;
+//    private List<TopicResponse> topics;
 }

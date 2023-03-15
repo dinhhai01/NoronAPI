@@ -30,23 +30,23 @@ public abstract class CommentMapper {
 //    }
 
     @Named("toRs")
-    public abstract CommentResponse toResponse(Comments comments,@Context List<Users> users,@Context Integer id);
+    public abstract CommentResponse toResponse(Comments comments,@Context List<Users> users);
 
     @IterableMapping(qualifiedByName = "toRs")
     public abstract List<CommentResponse> toResponse(List<Comments> comments,
-                                                     @Context List<Users> users, @Context Integer id);
+                                                     @Context List<Users> users);
 
     @AfterMapping
     protected void afterMapping(@MappingTarget CommentResponse commentResponse, Comments comments,
-                               @Context List<Users> users, @Context Integer id){
+                               @Context List<Users> users){
 
         Users user = users.stream()
                 .filter(users1 -> Objects.equals(users1.getId(),comments.getUserId()) &&
-                        Objects.equals(comments.getPostId(),id) &&
                         comments.getParentId() == -1)
                 .findAny().orElse(null);
 
         commentResponse.setUserResponse(toUserResponse(user));
+
     }
 
 }
