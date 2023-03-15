@@ -2,11 +2,13 @@ package com.mh.repository;
 
 import com.tej.JooQDemo.jooq.sample.model.Tables;
 import com.tej.JooQDemo.jooq.sample.model.tables.pojos.Comments;
+import io.reactivex.Single;
 import org.jooq.DSLContext;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import static com.mh.template.RxTemplate.rxSchedulerIo;
 
 
 @Repository
@@ -48,22 +50,34 @@ public class CommentRepository implements ICommentRepository {
     }
 
     @Override
-    public List<Comments> getCommentByPostId(List<Integer> postIds, int limit) {
-
-        return dslContext.select()
-                .from(Tables.COMMENTS)
-                .where(Tables.COMMENTS.POST_ID.in(postIds))
-                .fetchInto(Comments.class);
+    public Single<List<Comments>> getCommentByPostId(List<Integer> postIds, int limit) {
+        return rxSchedulerIo(()->{
+            return dslContext.select()
+                   .from(Tables.COMMENTS)
+                   .where(Tables.COMMENTS.POST_ID.in(postIds))
+                   .limit(limit)
+                   .fetchInto(Comments.class);
+        });
+//        return dslContext.select()
+//                .from(Tables.COMMENTS)
+//                .where(Tables.COMMENTS.POST_ID.in(postIds))
+//                .fetchInto(Comments.class);
     }
 
     @Override
-    public List<Comments> getAllCommentByPostId(int postId, Pageable pageable) {
-
-        return dslContext.select()
-                .from(Tables.COMMENTS)
-                .where(Tables.COMMENTS.POST_ID.eq(postId))
-                .limit(pageable.getPageSize()).offset(pageable.getOffset())
-                .fetchInto(Comments.class);
+    public Single<List<Comments>> getAllCommentByPostId(int postId, Pageable pageable) {
+        return rxSchedulerIo(()->{
+            return dslContext.select()
+                    .from(Tables.COMMENTS)
+                    .where(Tables.COMMENTS.POST_ID.eq(postId))
+                    .limit(pageable.getPageSize()).offset(pageable.getOffset())
+                    .fetchInto(Comments.class);
+        });
+//        return dslContext.select()
+//                .from(Tables.COMMENTS)
+//                .where(Tables.COMMENTS.POST_ID.eq(postId))
+//                .limit(pageable.getPageSize()).offset(pageable.getOffset())
+//                .fetchInto(Comments.class);
     }
 
     @Override

@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class CommentResponse {
 
-
+    private Integer postId;
     private String content;
 
     private String typeComment;

@@ -11,7 +11,7 @@ import java.util.Map;
 
 public interface IPostService {
 
-    PostResponse insertPost(PostRequest postRequest);
+    Single<PostResponse> insertPost(PostRequest postRequest);
     Single<List<PostResponse>> getAllPosts(Integer numComment, Pageable pageable);
 
     Post getViewById(int id);

@@ -4,13 +4,15 @@ package com.mh.repository;
 import com.mh.data.reponse.UserResponse;
 import com.mh.data.request.UserRequest;
 import com.tej.JooQDemo.jooq.sample.model.tables.pojos.Users;
+import io.reactivex.Single;
+
 import java.util.List;
 
 public interface IUserRepository{
 
-    Users insertUser(Users user);
+    Single<Users> insertUser(Users user);
 
-    List<Users> getAllUsers(List<Integer> postId);
+    Single<List<Users>> getAllUsers(List<Integer> postId);
 
 
     void deleteUserById(int id);
@@ -21,9 +23,9 @@ public interface IUserRepository{
 
     void updatePasswordById(int id,String pass);
 
-    Users updateUser(Users user);
+    Single<Users> updateUser(Users user);
 
-    Users getUserById(int id);
+    Single<Users> getUserById(int id);
 
-    List<Users> getAllUsersById(List<Integer> userIds);
+    Single<List<Users>> getAllUsersById(List<Integer> userIds);
 }

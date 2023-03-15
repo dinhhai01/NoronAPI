@@ -2,6 +2,7 @@ package com.mh.service;
 
 import com.mh.data.reponse.CommentResponse;
 import com.tej.JooQDemo.jooq.sample.model.tables.pojos.Comments;
+import io.reactivex.Single;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
@@ -18,5 +19,5 @@ public interface ICommentService {
 
     int countCommentByPostId(int postId);
 
-    List<CommentResponse> getAllComment(int postId, Pageable pageable);
+    Single<List<CommentResponse>> getAllComment(int postId, Pageable pageable);
 }

@@ -7,6 +7,7 @@ import com.mh.repository.IUserRepository;
 import com.tej.JooQDemo.jooq.sample.model.tables.pojos.Comments;
 import com.mh.repository.ICommentRepository;
 import com.tej.JooQDemo.jooq.sample.model.tables.pojos.Users;
+import io.reactivex.Single;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -32,7 +33,6 @@ public class CommentService implements ICommentService{
 
     @Override
     public void createComment(Comments comment) {
-
     }
 
     @Override
@@ -56,14 +56,25 @@ public class CommentService implements ICommentService{
     }
 
     @Override
-    public List<CommentResponse> getAllComment(int postId, Pageable pageable) {
-        List<Comments> commentsList = repository.getAllCommentByPostId(postId,pageable);
-        List<Integer> userIds = commentsList.stream()
-                .map(comments -> comments.getUserId())
-                .collect(Collectors.toList());
-        List<Users> users = userRepository.getAllUsersById(userIds);
-        List<CommentResponse> commentResponses = getCommentResponse(commentsList,users);
-        return commentResponses;
+    public Single<List<CommentResponse>> getAllComment(int postId, Pageable pageable) {
+        Single<List<Comments>> commentsList = repository.getAllCommentByPostId(postId,pageable);
+        return commentsList
+                .flatMap(comments -> {
+                    List<Integer> userIds = comments.stream()
+                            .map(Comments::getUserId)
+                            .collect(Collectors.toList());
+                    return userRepository.getAllUsersById(userIds)
+                            .map(users -> {
+                                return getCommentResponse(comments,users);
+                            });
+                });
+//        List<Integer> userIds = commentsList.stream()
+//                .map(Comments::getUserId)
+//                .collect(Collectors.toList());
+//        Single<List<Users>> users = userRepository.getAllUsersById(userIds);
+//
+//        List<CommentResponse> commentResponses = getCommentResponse(commentsList,users);
+//        return commentResponses;
     }
 
     public List<CommentResponse> getCommentResponse(List<Comments> comments, List<Users> users){

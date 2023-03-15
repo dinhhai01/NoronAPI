@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.mh.service.ICommentService;
 import com.tej.JooQDemo.jooq.sample.model.tables.pojos.Comments;
+import io.reactivex.Single;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
@@ -27,7 +28,7 @@ public class CommentController {
     }
 
     @GetMapping(value = "/comment/{postId}")
-    public List<CommentResponse> getAllCommentsByPostId(@PathVariable(name = "postId") int postId, Pageable pageable){
+    public Single<List<CommentResponse>> getAllCommentsByPostId(@PathVariable(name = "postId") int postId, Pageable pageable){
         return service.getAllComment(postId,pageable);
     }
 //

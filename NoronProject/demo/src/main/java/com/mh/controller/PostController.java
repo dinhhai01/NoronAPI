@@ -26,7 +26,7 @@ public class PostController {
     }
 
     @PostMapping()
-    public PostResponse insertPost(@RequestBody PostRequest postRequest){
+    public Single<PostResponse> insertPost(@RequestBody PostRequest postRequest){
         return service.insertPost(postRequest);
     }
 

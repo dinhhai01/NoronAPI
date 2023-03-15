@@ -14,20 +14,20 @@ import java.util.Map;
 
 public interface IPostRepository {
 
-    Map<Post,List<Topic>> insertPost(Post post , List<Topic> topics);
+    Single<Map<Post,List<Topic>>> insertPost(Post post , List<Topic> topics);
 
-    List<Post> getAllPosts(Pageable pageable);
+    Single<List<Post>> getAllPosts(Pageable pageable);
 
-   Post updateViewById(int id);
+   Single<Post> updateViewById(int id);
 //
-    Post updateContentById(int id,String content);
+    Single<Post> updateContentById(int id,String content);
 
-    Post updateTitleById(int id,String title);
+    Single<Post> updateTitleById(int id,String title);
 
     Single<List<Post>> getPosts(Pageable pageable);
 
-    Post updateTypeById(int id, String type);
+    Single<Post> updateTypeById(int id, String type);
 
-    int getViewById(int id);
+    Single<Integer> getViewById(int id);
 
 }

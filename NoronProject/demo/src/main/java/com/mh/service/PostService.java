@@ -15,10 +15,10 @@ import com.tej.JooQDemo.jooq.sample.model.tables.pojos.Post;
 import com.tej.JooQDemo.jooq.sample.model.tables.pojos.Topic;
 import com.tej.JooQDemo.jooq.sample.model.tables.pojos.Users;
 import io.reactivex.Single;
-import io.reactivex.schedulers.Schedulers;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -49,14 +49,23 @@ public class PostService implements IPostService {
     }
 
     @Override
-    public PostResponse insertPost(PostRequest postRequest) {
+    public Single<PostResponse> insertPost(PostRequest postRequest) {
         Post post = mapper.toEntity(postRequest);
         List<Topic> topics = postRequest.getTopics();
-        Map<Post, List<Topic>> map = repository.insertPost(post, topics);
-        Map.Entry<Post, List<Topic>> entry = map.entrySet().iterator().next();
-        Post postKey = entry.getKey();
-        List<Topic> topicPoJo = entry.getValue();
-        return mapper.toPostResponse(postKey, topicPoJo);
+        Single<Map<Post, List<Topic>>> map = repository.insertPost(post, topics);
+        return map.flatMap(m -> {
+            Map.Entry<Post, List<Topic>> entry = m.entrySet().iterator().next();
+            Post postKey = entry.getKey();
+            List<Topic> topicPoJo = entry.getValue();
+            PostResponse postResponse = mapper.toPostResponse(postKey, topicPoJo);
+//            return postResponse;
+            return Single.just(postResponse);
+        });
+//        Map<Post, List<Topic>> map1 = map.blockingGet();
+//        Map.Entry<Post, List<Topic>> entry = map1.entrySet().iterator().next();
+//        Post postKey = entry.getKey();
+//        List<Topic> topicPoJo = entry.getValue();
+//        return mapper.toPostResponse(postKey, topicPoJo);
     }
 
     @Override
@@ -74,15 +83,17 @@ public class PostService implements IPostService {
     }
 
     private Single<List<Post>> getAllPost(Pageable pageable) {
-        return Single.create(singleEmitter -> {
-            List<Post> posts = repository.getAllPosts(pageable);
-            singleEmitter.onSuccess(posts);
-        });
+        return repository.getAllPosts(pageable);
+//        return Single.create(singleEmitter -> {
+//            List<Post> posts = repository.getAllPosts(pageable);
+//            singleEmitter.onSuccess(posts);
+//        });
     }
 
-    private List<PostResponse> getPostResponses(Map<Integer, List<CommentResponse>> map,
-                                                Map<Integer, List<TopicResponse>> mapTopic,
+    private List<PostResponse> getPostResponses(List<CommentResponse> map,
+                                                List<TopicResponse> mapTopic,
                                                 List<PostResponse> postResponses) {
+        // kafka +
 
         postResponses.forEach(p -> {
             if (!CollectionUtils.isEmpty(map) && map.containsKey(p.getId())) {
@@ -91,7 +102,6 @@ public class PostService implements IPostService {
 
             if (!CollectionUtils.isEmpty(mapTopic) && map.containsKey(p.getId())) {
                 p.setTopics(mapTopic.get(p.getId()).stream()
-                        .map(TopicResponse::getTopicId)
                         .collect(Collectors.toList()));
             }
         });
@@ -99,41 +109,47 @@ public class PostService implements IPostService {
         return postResponses;
     }
 
-    private Single<Map<Integer, List<CommentResponse>>> getComments(List<Integer> postId, int numberOfComments) {
-        return Single.just("io")
-                .subscribeOn(Schedulers.io())
-                .flatMap(s -> getCommentByPostId(postId, numberOfComments))
-                .flatMap(comments -> {
-                    return getUsers(comments)
-                            .map(users -> {
-                                Map<Integer, List<CommentResponse>> map = new HashMap<>();
-                                postId.forEach(p -> {
-                                    List<CommentResponse> commentsList = mapper.toResponse(comments, users, p);
-                                    map.put(p, commentsList);
-                                });
-                                return map;
+    private Single<List<CommentResponse>> getComments(List<Integer> postId, int numberOfComments) {
+        return getCommentByPostId(postId, numberOfComments)
+                .flatMap(comments -> getUsers(comments)
+                        .map(users -> {
+                            Map<Integer, List<CommentResponse>> map = new HashMap<>();
+                            postId.forEach(p -> {
+                                List<CommentResponse> commentsList = mapper.toResponse(comments, users, p);
+                                map.put(p, commentsList);
                             });
-                });
+                            return map;
+                        }));
     }
 
 
     private Single<List<Comments>> getCommentByPostId(List<Integer> postIds, int numberOfComments) {
-        return Single.create(singleEmitter -> {
-            List<Comments> comments = commentRepository.getCommentByPostId(postIds, numberOfComments);
-            singleEmitter.onSuccess(comments);
-        });
+        return commentRepository.getCommentByPostId(postIds, numberOfComments);
+//        return Single.create(singleEmitter -> {
+//            List<Comments> comments = commentRepository.getCommentByPostId(postIds, numberOfComments);
+//            singleEmitter.onSuccess(comments);
+//        });
     }
 
-    private Single<Map<Integer, List<TopicResponse>>> getTopics(List<Integer> postId) {
-        return Single.create(singleEmitter -> {
-            List<PostTopicDTO> postTopicDTOS = postTopicRepository.getListTopicByPostId(postId);
-            Map<Integer, List<TopicResponse>> map = new HashMap<>();
-            postId.forEach(p -> {
-                List<TopicResponse> topicList = getTopicResponses(postTopicDTOS, p);
-                map.put(p, topicList);
-            });
-            singleEmitter.onSuccess(map);
-        });
+    private Single<List<TopicResponse>> getTopics(List<Integer> postId) {
+        return postTopicRepository.getListTopicByPostId(postId)
+                .map(post -> {
+                    Map<Integer, List<TopicResponse>> map = new HashMap<>();
+                    postId.forEach(p -> {
+                        List<TopicResponse> topicList = getTopicResponses(post, p);
+                        map.put(p, topicList);
+                    });
+                    return map;
+                });
+//        return Single.create(singleEmitter -> {
+//            List<PostTopicDTO> postTopicDTOS = postTopicRepository.getListTopicByPostId(postId);
+//            Map<Integer, List<TopicResponse>> map = new HashMap<>();
+//            postId.forEach(p -> {
+//                List<TopicResponse> topicList = getTopicResponses(postTopicDTOS, p);
+//                map.put(p, topicList);
+//            });
+//            singleEmitter.onSuccess(map);
+//        });
     }
 
     private List<TopicResponse> getTopicResponses(List<PostTopicDTO> postTopicDTOS, Integer p) {
@@ -171,7 +187,7 @@ public class PostService implements IPostService {
                 .map(Comments::getUserId)
                 .collect(Collectors.toList());
         return Single.just("io")
-                .flatMap(s->getAllUsers(userIds));
+                .flatMap(s -> getAllUsers(userIds));
 //        return Single.create(singleEmitter -> {
 //            singleEmitter.onSuccess(userRepository.getAllUsers(userIds));
 //        });
@@ -183,9 +199,10 @@ public class PostService implements IPostService {
     }
 
     private Single<List<Users>> getAllUsers(List<Integer> userIds) {
-        return Single.create(singleEmitter -> {
-            singleEmitter.onSuccess(userRepository.getAllUsers(userIds));
-        });
+        return userRepository.getAllUsers(userIds);
+//        return Single.create(singleEmitter -> {
+//            singleEmitter.onSuccess(userRepository.getAllUsers(userIds));
+//        });
     }
 
     @Override
@@ -195,50 +212,62 @@ public class PostService implements IPostService {
 
     @Override
     public Single<Integer> updateViewById(int id) {
-        return Single.create(singleEmitter -> {
-            Post post = repository.updateViewById(id);
-            if (post!= null) {
-                singleEmitter.onSuccess(post.getId());
-            } else {
-                singleEmitter.onError(new Exception("post not found"));
-            }
-        });
+
+        return repository.updateViewById(id)
+                .map(Post::getViewPost);
+//        return Single.create(singleEmitter -> {
+//            Post post = repository.updateViewById(id);
+//            if (post!= null) {
+//                singleEmitter.onSuccess(post.getViewPost());
+//            } else {
+//                singleEmitter.onError(new Exception("post not found"));
+//            }
+//        });
     }
 
     @Override
     public Single<PostResponse> updateContentById(int id, String content) {
-        return Single.create(singleEmitter -> {
-            Post post = repository.updateContentById(id, content);
-            if (post != null) {
-                singleEmitter.onSuccess(mapper.toPostResponse(post));
-            } else {
-                singleEmitter.onError(new Exception("post not found"));
-            }
-        });
+        //                    return Single.just(mapper.toPostResponse(post));
+        return repository.updateContentById(id, content)
+                .map(mapper::toPostResponse);
+//        return Single.create(singleEmitter -> {
+////            Post post = repository.updateContentById(id, content).blockingGet();
+//            Post post = repository.updateContentById(id, content).blockingGet();
+//            if (post != null) {
+//                singleEmitter.onSuccess(mapper.toPostResponse(post));
+//            } else {
+//                singleEmitter.onError(new Exception("post not found"));
+//            }
+//        });
     }
 
     @Override
     public Single<String> updateTitleById(int id, String title) {
-        return Single.create(singleEmitter -> {
-            Post post = repository.updateTitleById(id, title);
-            if (post!= null) {
-                singleEmitter.onSuccess(post.getTitle());
-            } else {
-                singleEmitter.onError(new Exception("post not found"));
-            }
-        });
+        return repository.updateTitleById(id, title)
+                .map(Post::getTitle);
+//        return Single.create(singleEmitter -> {
+//            Post post = repository.updateTitleById(id, title);
+//            if (post!= null) {
+//                singleEmitter.onSuccess(post.getTitle());
+//            } else {
+//                singleEmitter.onError(new Exception("post not found"));
+//            }
+//        });
     }
 
     @Override
     public Single<String> updateTypeById(int id, String type) {
-        return Single.create(singleEmitter -> {
-            Post post = repository.updateTypeById(id, type);
-            if (post!= null) {
-                singleEmitter.onSuccess(post.getTypePost());
-            } else {
-                singleEmitter.onError(new Exception("post not found"));
-            }
-        });
+
+        return repository.updateTypeById(id, type)
+                .map(Post::getTypePost);
+//        return Single.create(singleEmitter -> {
+//            Post post = repository.updateTypeById(id, type);
+//            if (post!= null) {
+//                singleEmitter.onSuccess(post.getTypePost());
+//            } else {
+//                singleEmitter.onError(new Exception("post not found"));
+//            }
+//        });
     }
 
     @Override
